@@ -1,0 +1,49 @@
+==================================================
+PLAYWRIGHT BROWSER FETCHER TEST
+==================================================
+
+[1] Initializing browser...
+    OK - Browser ready
+
+[2] Fetching trends for Indonesia (ID)...
+    Success: True
+    Trends found: 5
+
+[3] Trends extracted:
+
+    #2: al-najma saudi vs al-ettifaq
+        Volume: 500+ (arrow_upward)
+        Started: 30 minutes ago
+        Status: Active
+        Duration: trending_up
+
+    #3: assassin creed
+        Volume: 500+ (arrow_upward)
+        Started: 4 hours ago
+        Status: Active
+        Duration: timelapse
+
+    #4: assassin's creed
+        Volume: 200+ (arrow_upward)
+        Started: 4 hours ago
+        Status: Active
+        Duration: timelapse
+
+    #5: sudoku
+        Volume: 100+ (arrow_upward)
+        Started: 12 hours ago
+        Status: Active
+        Duration: timelapse
+
+    #6: bet365
+        Volume: 200+ (arrow_upward)
+        Started: 23 hours ago
+        Status: Active
+        Duration: timelapse
+
+[4] Sending Discord notification for: al-najma saudi vs al-ettifaq
+    Sent: True
+
+==================================================
+TEST COMPLETE - SUCCESS!
+==================================================
