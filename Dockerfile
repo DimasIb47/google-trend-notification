@@ -25,21 +25,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ONLY dependency files first (for layer caching)
-COPY pyproject.toml README.md ./
+# Install pip dependencies first (for caching)
+# We install the main dependencies without the full package
+RUN pip install --no-cache-dir \
+    httpx>=0.27.0 \
+    fastapi>=0.109.0 \
+    uvicorn>=0.27.0 \
+    pydantic>=2.5.0 \
+    pydantic-settings>=2.1.0 \
+    aiosqlite>=0.19.0 \
+    playwright>=1.40.0
 
-# Create minimal src structure for pip install
-RUN mkdir -p src/trend_fetcher && \
-    echo '__version__ = "1.0.0"' > src/trend_fetcher/__init__.py
-
-# Install Python dependencies (CACHED - only rebuilds if pyproject.toml changes)
-RUN pip install --no-cache-dir .
-
-# Install Playwright browsers (CACHED - only rebuilds if pip deps change)
+# Install Playwright browsers (CACHED)
 RUN playwright install chromium
 
-# NOW copy the actual source code (this layer changes often, but doesn't trigger re-download)
+# Copy project files
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
+
+# Install the package (quick, deps already installed)
+RUN pip install --no-cache-dir --no-deps .
 
 # Create data directory
 RUN mkdir -p /app/data
