@@ -1,9 +1,10 @@
-"""Discord webhook notification sender."""
+"""Discord webhook notification sender with spam filtering."""
 
 import httpx
 import asyncio
 import logging
-from typing import Optional
+import re
+from typing import Optional, List
 from datetime import datetime
 
 from .config import settings
@@ -18,22 +19,61 @@ GEO_DISPLAY = {
     "ID": ("Indonesia", "🇮🇩"),
 }
 
+# Spam keywords to filter out (lottery, gambling, crosswords, trivia)
+BLOCKED_KEYWORDS = [
+    # Lottery
+    "powerball", "lottery", "togel", "mega millions", "lotto", "jackpot",
+    "numbers today", "winning numbers", "lottery results",
+    # Gambling
+    "fanduel", "draftkings", "bet365", "betway", "sportsbook", "betting odds",
+    "casino", "slots", "poker online",
+    # Word games / Trivia (not gaming news relevant)
+    "wordle", "connections hint", "connections nyt", "quordle", "strands hint",
+    "crossword", "nyt crossword", "spelling bee", "sudoku",
+    # Other spam patterns
+    "horoscope", "zodiac", "weather today", "stock price",
+]
+
+
+def is_spam_trend(title: str) -> bool:
+    """Check if a trend title contains blocked keywords."""
+    title_lower = title.lower()
+    for keyword in BLOCKED_KEYWORDS:
+        if keyword in title_lower:
+            logger.info(f"Filtered spam trend: '{title}' (matched: {keyword})")
+            return True
+    return False
+
 
 def format_discord_message(trend: TrendItem) -> dict:
     """Format a trend as a Discord webhook message with embed."""
     country_name, flag = GEO_DISPLAY.get(trend.geo, (trend.geo, "🌍"))
 
-    # Determine status emoji
-    status_emoji = "🟢" if trend.status.lower() == "active" else "⚫"
+    # Determine status emoji and text
+    is_active = trend.status.lower() == "active"
+    status_emoji = "🟢" if is_active else "⚫"
+    status_text = "TRENDING" if is_active else "Ended"
 
-    # Build description
+    # Build the notification preview text (shows in notification bar)
+    volume_str = trend.search_volume
+    if trend.growth_percent:
+        volume_str += f" {trend.growth_percent}"
+    
+    preview_text = (
+        f"<@906519204214214666>\n"
+        f"🔥 **{trend.title}**\n"
+        f"📊 {volume_str} | ⏰ {trend.started_time}\n"
+        f"{status_emoji} {status_text} | {flag} {trend.geo}"
+    )
+
+    # Build embed description
     description_lines = []
 
     if trend.search_volume:
-        volume_str = trend.search_volume
+        vol_str = trend.search_volume
         if trend.growth_percent:
-            volume_str += f" ({trend.growth_percent})"
-        description_lines.append(f"📊 **Volume:** {volume_str}")
+            vol_str += f" ({trend.growth_percent})"
+        description_lines.append(f"📊 **Volume:** {vol_str}")
 
     if trend.started_time:
         description_lines.append(f"⏰ **Started:** {trend.started_time}")
@@ -41,7 +81,7 @@ def format_discord_message(trend: TrendItem) -> dict:
     if trend.duration:
         description_lines.append(f"⏱️ **Duration:** {trend.duration}")
 
-    description_lines.append(f"{status_emoji} **Status:** {trend.status}")
+    description_lines.append(f"{status_emoji} **Status:** {status_text}")
 
     # Add related queries if available
     if trend.related_queries:
@@ -56,7 +96,7 @@ def format_discord_message(trend: TrendItem) -> dict:
     embed = {
         "title": f"🔥 {trend.title}",
         "description": description,
-        "color": 0xFF6B35 if trend.status.lower() == "active" else 0x6B7280,
+        "color": 0xFF6B35 if is_active else 0x6B7280,
         "fields": [
             {
                 "name": "📍 Region",
@@ -82,7 +122,7 @@ def format_discord_message(trend: TrendItem) -> dict:
     }
 
     return {
-        "content": "<@906519204214214666>",  # Tag user with Discord ID
+        "content": preview_text,  # This shows in notification bar!
         "embeds": [embed],
     }
 
@@ -103,6 +143,10 @@ async def send_discord_notification(
     Returns:
         True if successful, False otherwise
     """
+    # Check if trend should be filtered
+    if is_spam_trend(trend.title):
+        return False  # Don't send, but not an error
+    
     url = webhook_url or settings.discord_webhook_url
     message = format_discord_message(trend)
 
