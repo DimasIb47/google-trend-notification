@@ -60,10 +60,10 @@ def format_discord_message(trend: TrendItem) -> dict:
         volume_str += f" {trend.growth_percent}"
     
     preview_text = (
-        f"<@906519204214214666>\n"
         f"🔥 **{trend.title}**\n"
         f"📊 {volume_str} | ⏰ {trend.started_time}\n"
-        f"{status_emoji} {status_text} | {flag} {trend.geo}"
+        f"{status_emoji} {status_text} | {flag} {trend.geo}\n"
+        f"<@906519204214214666>"
     )
 
     # Build embed description
