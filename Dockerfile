@@ -3,10 +3,9 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for Playwright
+# Install system dependencies for Playwright (CACHED - rarely changes)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    # Playwright dependencies
     libnss3 \
     libnspr4 \
     libdbus-1-3 \
@@ -26,15 +25,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
+# Copy ONLY dependency files first (for layer caching)
 COPY pyproject.toml README.md ./
-COPY src/ ./src/
 
-# Install Python dependencies
+# Create minimal src structure for pip install
+RUN mkdir -p src/trend_fetcher && \
+    echo '__version__ = "1.0.0"' > src/trend_fetcher/__init__.py
+
+# Install Python dependencies (CACHED - only rebuilds if pyproject.toml changes)
 RUN pip install --no-cache-dir .
 
-# Install Playwright browsers
+# Install Playwright browsers (CACHED - only rebuilds if pip deps change)
 RUN playwright install chromium
+
+# NOW copy the actual source code (this layer changes often, but doesn't trigger re-download)
+COPY src/ ./src/
 
 # Create data directory
 RUN mkdir -p /app/data
